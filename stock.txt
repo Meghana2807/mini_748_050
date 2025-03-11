@@ -1,0 +1,55 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+# Download stock data using yfinance (e.g., Apple stock)
+stock_symbol = 'AAPL'  # Replace with your stock symbol
+start_date = '2015-01-01'
+end_date = '2025-01-01'
+
+data = yf.download(stock_symbol, start=start_date, end=end_date)
+
+# Feature Engineering: Use 'Close' price for prediction and create features
+data['Close'] = data['Adj Close']  # Use Adjusted Close for better results
+data['Price Change'] = data['Close'].pct_change()  # Daily price change
+
+# Create rolling window features for past 10 days' data (for example)
+for i in range(1, 11):
+    data[f'Rolling Mean {i}'] = data['Close'].shift(i).rolling(window=10).mean()
+
+data.dropna(inplace=True)  # Drop rows with NaN values
+
+# Define features (X) and target (y)
+X = data[['Price Change'] + [f'Rolling Mean {i}' for i in range(1, 11)]]
+y = data['Close']
+
+# Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+# Initialize and train the Random Forest model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+mae = mean_absolute_error(y_test, y_pred)
+mse = mean_squared_error(y_test, y_pred)
+
+print(f'Mean Absolute Error: {mae}')
+print(f'Mean Squared Error: {mse}')
+
+# Plot actual vs predicted prices
+plt.figure(figsize=(10, 6))
+plt.plot(y_test.index, y_test, label='Actual Price', color='blue')
+plt.plot(y_test.index, y_pred, label='Predicted Price', color='red', linestyle='--')
+plt.title(f'{stock_symbol} Stock Price Prediction')
+plt.xlabel('Date')
+plt.ylabel('Stock Price')
+plt.legend()
+plt.show()
